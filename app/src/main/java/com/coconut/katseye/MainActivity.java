@@ -25,6 +25,8 @@ public class MainActivity extends Activity {
   private final Handler handler=new Handler(Looper.getMainLooper());
   private boolean scanning=false;
   private volatile boolean musicOn=false;
+  private volatile int songMode=0; // 0: general, 1: Gnarly, 2: Pinky Up, 3: Gabriela, 4: Touch, 5: That Way
+  private TextView selectedSong;
   private AudioRecord recorder;
   private Thread musicThread;
   private int red=255,green=40,blue=150,brightness=100;
@@ -82,6 +84,20 @@ public class MainActivity extends Activity {
         handler.postDelayed(()->send(Color.red(c),Color.green(c),Color.blue(c)),i*650L);
       }
     });
+    root.addView(label("MODOS KATSEYE ♡",20,0xffffc3e4));
+    selectedSong=label("Seleccionado: modo general",14,0xffd2b9e2);
+    root.addView(selectedSong);
+    String[] songs={"GENERAL","GNARLY 💚","PINKY UP 💗","GABRIELA ❤️","TOUCH 💜","THAT WAY 💜💗"};
+    for(int i=0;i<songs.length;i++){
+      final int mode=i;
+      Button preset=button(songs[i],root);
+      preset.setOnClickListener(v->{
+        songMode=mode;
+        selectedSong.setText("Seleccionado: "+songs[mode]);
+        if(!musicOn)sendPresetPreview(mode);
+        else say("Modo "+songs[mode]+" activo");
+      });
+    }
     root.addView(label("MODO CONCIERTO 🎵",20,0xffffc3e4));
     root.addView(label("Reacciona al volumen captado por el micrófono. No sincroniza canciones por título ni captura audio interno.",14,0xffd2b9e2));
     Button music=button("INICIAR MODO MÚSICA",root);
@@ -172,6 +188,20 @@ public class MainActivity extends Activity {
       if(!gatt.writeCharacteristic(writeChar))say("No se pudo enviar el color");
     });
   }
+  private int presetColor(int mode,int beat){
+    switch(mode){
+      case 1: return 0xff35e56a;
+      case 2: return 0xffff3ba7;
+      case 3: return 0xffe51b32;
+      case 4: return 0xffbd86f7;
+      case 5: return beat%2==0?0xff923eeb:0xffff65c8;
+      default: return palette[(beat/5)%6];
+    }
+  }
+  private void sendPresetPreview(int mode){
+    int c=presetColor(mode,0);
+    send(Color.red(c)*brightness/100,Color.green(c)*brightness/100,Color.blue(c)*brightness/100);
+  }
   private boolean startMusic(){
     if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
       requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},101);
@@ -189,7 +219,11 @@ public class MainActivity extends Activity {
     musicOn=true;
     final AudioRecord currentRecorder=recorder;
     musicThread=new Thread(()->{
-      short[] samples=new short[2048];int index=0;long last=0;
+      short[] samples=new short[2048];
+      int beat=0;
+      long last=0,lastBeat=0;
+      double envelope=0.015;
+      double previous=0;
       while(musicOn){
         int count=currentRecorder.read(samples,0,samples.length);
         if(count<=0)continue;
@@ -197,11 +231,19 @@ public class MainActivity extends Activity {
         for(int i=0;i<count;i++)energy+=samples[i]*(double)samples[i];
         double rms=Math.sqrt(energy/count)/32768.0;
         long now=System.currentTimeMillis();
-        if(now-last<180)continue;
+        envelope=envelope*0.92+rms*0.08;
+        if(now-last<110)continue;
         last=now;
-        int color=palette[(index++/5)%6];
-        double amp=Math.min(1,Math.max(.08,rms*12));
-        send((int)(Color.red(color)*amp),(int)(Color.green(color)*amp),(int)(Color.blue(color)*amp));
+        boolean hit=rms>Math.max(0.018,envelope*1.5)&&rms>previous*1.12&&now-lastBeat>170;
+        if(hit){beat++;lastBeat=now;}
+        previous=rms;
+        int mode=songMode;
+        int color=presetColor(mode,beat);
+        double level=Math.min(1.0,Math.max(0.18,rms*13));
+        if(hit)level=1.0;
+        else if(mode!=0)level=Math.min(0.65,level);
+        level*=brightness/100.0;
+        send((int)(Color.red(color)*level),(int)(Color.green(color)*level),(int)(Color.blue(color)*level));
       }
     });
     musicThread.start();
