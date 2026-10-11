@@ -67,6 +67,7 @@ public class MainActivity extends Activity {
       colors.addView(colorButton,new LinearLayout.LayoutParams(0,65,1));
       colorButton.setOnClickListener(v->{red=Color.red(c);green=Color.green(c);blue=Color.blue(c);sendColor();});
     }
+    button("🎨 ELEGIR CUALQUIER COLOR",root).setOnClickListener(v->showColorPicker());
     root.addView(label("BRILLO",20,0xffffc3e4));
     SeekBar bar=new SeekBar(this);
     bar.setMax(100);
@@ -107,6 +108,45 @@ public class MainActivity extends Activity {
     });
     root.addView(label("Prototipo experimental. Protocolo Bluetooth sin verificar con el dispositivo real. No afiliado a KATSEYE.",11,0xffa593b2));
     requestBluetoothPermissions();
+  }
+  private void showColorPicker(){
+    LinearLayout layout=new LinearLayout(this);
+    layout.setOrientation(LinearLayout.VERTICAL);
+    layout.setPadding(30,12,30,12);
+    TextView preview=label("● COLOR PERSONALIZADO",20,Color.rgb(red,green,blue));
+    preview.setGravity(Gravity.CENTER);
+    layout.addView(preview);
+    final float[] hsv=new float[3];
+    Color.RGBToHSV(red,green,blue,hsv);
+    String[] names={"Tono (todos los colores)","Saturación (intensidad)","Luminosidad"};
+    int[] maximum={360,100,100};
+    for(int i=0;i<3;i++){
+      final int index=i;
+      TextView caption=label(names[i],14,Color.DKGRAY);
+      layout.addView(caption);
+      SeekBar slider=new SeekBar(this);
+      slider.setMax(maximum[i]);
+      slider.setProgress(Math.round(hsv[i]*(i==0?1:100)));
+      layout.addView(slider);
+      slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+        public void onStartTrackingTouch(SeekBar b){}
+        public void onStopTrackingTouch(SeekBar b){}
+        public void onProgressChanged(SeekBar b,int value,boolean fromUser){
+          hsv[index]=index==0?value:value/100f;
+          int c=Color.HSVToColor(hsv);
+          preview.setTextColor(c);
+        }
+      });
+    }
+    new android.app.AlertDialog.Builder(this)
+      .setTitle("Paleta de colores RGB")
+      .setView(layout)
+      .setNegativeButton("Cancelar",null)
+      .setPositiveButton("Aplicar",(dialog,which)->{
+        int c=Color.HSVToColor(hsv);
+        red=Color.red(c);green=Color.green(c);blue=Color.blue(c);
+        sendColor();
+      }).show();
   }
   private TextView label(String value,int size,int color){
     TextView view=new TextView(this);
@@ -190,7 +230,7 @@ public class MainActivity extends Activity {
   }
   private int presetColor(int mode,int beat){
     switch(mode){
-      case 1: return 0xff35e56a;
+      case 1: return 0xff00ff00;
       case 2: return 0xffff3ba7;
       case 3: return 0xffe51b32;
       case 4: return 0xffbd86f7;
