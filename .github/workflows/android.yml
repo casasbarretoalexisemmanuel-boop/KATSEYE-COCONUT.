@@ -22,6 +22,10 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Preparar icono de KATSEYE
+        run: |
+          mkdir -p app/src/main/res/drawable
+          base64 --decode app/icon-artwork.b64 > app/src/main/res/drawable/app_icon.jpg
       - name: Compilar APK
         run: gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
