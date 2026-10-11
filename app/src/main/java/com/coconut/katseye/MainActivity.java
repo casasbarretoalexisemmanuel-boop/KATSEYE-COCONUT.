@@ -33,26 +33,26 @@ public class MainActivity extends Activity {
 
   @Override public void onCreate(Bundle state){
     super.onCreate(state);
-    getWindow().setStatusBarColor(0xff120b20);
-    getWindow().setNavigationBarColor(0xff120b20);
+    getWindow().setStatusBarColor(0xffd5b8ef);
+    getWindow().setNavigationBarColor(0xffd5b8ef);
     BluetoothManager manager=(BluetoothManager)getSystemService(BLUETOOTH_SERVICE);
     adapter=manager.getAdapter();
     LinearLayout root=new LinearLayout(this);
     root.setOrientation(LinearLayout.VERTICAL);
     root.setPadding(28,28,28,28);
-    root.setBackgroundColor(0xff120b20);
+    root.setBackgroundColor(0xffd5b8ef);
     ScrollView scroll=new ScrollView(this);
     scroll.addView(root);
     setContentView(scroll);
-    TextView title=label("KATSEYE ✦",30,0xffffc3e4);
+    TextView title=label("KATSEYE ✦",30,0xff582d78);
     title.setGravity(Gravity.CENTER);
     root.addView(title);
-    TextView subtitle=label("COCONUT LIGHTSTICK · beta 0.1",12,0xffbda9ca);
+    TextView subtitle=label("COCONUT LIGHTSTICK · beta 0.1",12,0xff56336c);
     subtitle.setGravity(Gravity.CENTER);
     root.addView(subtitle);
-    status=label("Sin conectar",17,Color.WHITE);
+    status=label("Sin conectar",17,0xff422357);
     root.addView(status);
-    battery=label("Batería: pendiente de lectura",14,0xffd2b9e2);
+    battery=label("Batería: pendiente de lectura",14,0xff56336c);
     root.addView(battery);
     button("♡ CONECTAR LIGHTSTICK",root).setOnClickListener(v->connect());
     root.addView(label("COLORES",20,0xffffc3e4));
@@ -86,7 +86,7 @@ public class MainActivity extends Activity {
       }
     });
     root.addView(label("MODOS KATSEYE ♡",20,0xffffc3e4));
-    selectedSong=label("Seleccionado: modo general",14,0xffd2b9e2);
+    selectedSong=label("Seleccionado: modo general",14,0xff56336c);
     root.addView(selectedSong);
     String[] songs={"GENERAL","GNARLY 💚","PINKY UP 💗","GABRIELA ❤️","TOUCH 💜","THAT WAY 💜💗"};
     for(int i=0;i<songs.length;i++){
@@ -100,7 +100,7 @@ public class MainActivity extends Activity {
       });
     }
     root.addView(label("MODO CONCIERTO 🎵",20,0xffffc3e4));
-    root.addView(label("Reacciona al volumen captado por el micrófono. No sincroniza canciones por título ni captura audio interno.",14,0xffd2b9e2));
+    root.addView(label("Reacciona al volumen captado por el micrófono. No sincroniza canciones por título ni captura audio interno.",14,0xff56336c));
     Button music=button("INICIAR MODO MÚSICA",root);
     music.setOnClickListener(v->{
       if(musicOn){stopMusic();music.setText("INICIAR MODO MÚSICA");}
@@ -156,7 +156,7 @@ public class MainActivity extends Activity {
   private Button button(String value,LinearLayout root){
     Button view=new Button(this);
     view.setText(value);view.setAllCaps(false);view.setTextColor(Color.WHITE);
-    view.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff8e3b9f));
+    view.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff9563be));
     root.addView(view);
     return view;
   }
