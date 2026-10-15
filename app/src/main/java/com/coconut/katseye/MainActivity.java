@@ -28,34 +28,43 @@ public class MainActivity extends Activity {
   private volatile int songMode=0; // 0: general, 1: Gnarly, 2: Pinky Up, 3: Gabriela, 4: Touch, 5: That Way
   private TextView selectedSong;
   private AudioRecord recorder;
+  private MediaProjection projection;
+  private MediaProjectionManager projectionManager;
+  private static final int CAPTURE_REQUEST=204;
+  private int audioSource=0; // 0 micrófono, 1 audio interno
+  private Button musicButton;
+  private TextView audioModeLabel;
+  private double sensitivity=1.5;
+  private long lastWrite=0;
   private Thread musicThread;
   private int red=255,green=40,blue=150,brightness=100;
 
   @Override public void onCreate(Bundle state){
     super.onCreate(state);
-    getWindow().setStatusBarColor(0xffd5b8ef);
-    getWindow().setNavigationBarColor(0xffd5b8ef);
+    getWindow().setStatusBarColor(0xff251438);
+    getWindow().setNavigationBarColor(0xff251438);
+    projectionManager=(MediaProjectionManager)getSystemService(Context.MEDIA_PROJECTION_SERVICE);
     BluetoothManager manager=(BluetoothManager)getSystemService(BLUETOOTH_SERVICE);
     adapter=manager.getAdapter();
     LinearLayout root=new LinearLayout(this);
     root.setOrientation(LinearLayout.VERTICAL);
-    root.setPadding(28,28,28,28);
-    root.setBackgroundColor(0xffd5b8ef);
+    root.setPadding(32,32,32,40);
+    root.setBackgroundColor(0xff251438);
     ScrollView scroll=new ScrollView(this);
     scroll.addView(root);
     setContentView(scroll);
-    TextView title=label("KATSEYE ✦",30,0xff582d78);
+    TextView title=label("KATSEYE ✦",36,0xffffc6f2);
     title.setGravity(Gravity.CENTER);
     root.addView(title);
-    TextView subtitle=label("COCONUT LIGHTSTICK · beta 0.1",12,0xff56336c);
+    TextView subtitle=label("LIGHTSYNC 2.0  ·  COCONUT EDITION",13,0xffc9a7ff);
     subtitle.setGravity(Gravity.CENTER);
     root.addView(subtitle);
-    status=label("Sin conectar",17,0xff422357);
+    status=label("Sin conectar",17,0xfff5e7ff);
     root.addView(status);
-    battery=label("Batería: pendiente de lectura",14,0xff56336c);
+    battery=label("Batería: pendiente de lectura",14,0xffdfc9f3);
     root.addView(battery);
     button("♡ CONECTAR LIGHTSTICK",root).setOnClickListener(v->connect());
-    root.addView(label("COLORES",20,0xffffc3e4));
+    root.addView(label("COLORES",20,0xffff9edb));
     LinearLayout colors=new LinearLayout(this);
     colors.setOrientation(LinearLayout.HORIZONTAL);
     root.addView(colors);
@@ -68,7 +77,7 @@ public class MainActivity extends Activity {
       colorButton.setOnClickListener(v->{red=Color.red(c);green=Color.green(c);blue=Color.blue(c);sendColor();});
     }
     button("🎨 ELEGIR CUALQUIER COLOR",root).setOnClickListener(v->showColorPicker());
-    root.addView(label("BRILLO",20,0xffffc3e4));
+    root.addView(label("BRILLO",20,0xffff9edb));
     SeekBar bar=new SeekBar(this);
     bar.setMax(100);
     bar.setProgress(100);
@@ -85,8 +94,8 @@ public class MainActivity extends Activity {
         handler.postDelayed(()->send(Color.red(c),Color.green(c),Color.blue(c)),i*650L);
       }
     });
-    root.addView(label("MODOS KATSEYE ♡",20,0xffffc3e4));
-    selectedSong=label("Seleccionado: modo general",14,0xff56336c);
+    root.addView(label("MODOS KATSEYE ♡",20,0xffff9edb));
+    selectedSong=label("Seleccionado: modo general",14,0xffdfc9f3);
     root.addView(selectedSong);
     String[] songs={"GENERAL","GNARLY 💚","PINKY UP 💗","GABRIELA ❤️","TOUCH 💜","THAT WAY 💜💗"};
     for(int i=0;i<songs.length;i++){
@@ -99,14 +108,37 @@ public class MainActivity extends Activity {
         else say("Modo "+songs[mode]+" activo");
       });
     }
-    root.addView(label("MODO CONCIERTO 🎵",20,0xffffc3e4));
-    root.addView(label("Reacciona al volumen captado por el micrófono. No sincroniza canciones por título ni captura audio interno.",14,0xff56336c));
-    Button music=button("INICIAR MODO MÚSICA",root);
-    music.setOnClickListener(v->{
-      if(musicOn){stopMusic();music.setText("INICIAR MODO MÚSICA");}
-      else if(startMusic()){music.setText("DETENER MODO MÚSICA");}
+    root.addView(label("AUDIO REACTIVO  ♫",23,0xffff9edb));
+    root.addView(label("Elige la fuente de sonido. El audio interno requiere autorización de Android y que la aplicación reproductora permita capturarlo.",14,0xffdfc9f3));
+    audioModeLabel=label("Fuente: micrófono externo",15,0xffffc6f2);
+    root.addView(audioModeLabel);
+    button("🎤 MICRÓFONO EXTERNO",root).setOnClickListener(v->{
+      stopMusic(); if(musicButton!=null)musicButton.setText("▶ INICIAR SINCRONIZACIÓN");
+      audioSource=0; audioModeLabel.setText("Fuente: micrófono externo");
     });
-    root.addView(label("Prototipo experimental. Protocolo Bluetooth sin verificar con el dispositivo real. No afiliado a KATSEYE.",11,0xffa593b2));
+    button("♫ AUDIO INTERNO DEL CELULAR",root).setOnClickListener(v->{
+      stopMusic(); if(musicButton!=null)musicButton.setText("▶ INICIAR SINCRONIZACIÓN");
+      audioSource=1; audioModeLabel.setText("Fuente: audio interno · requiere permiso");
+    });
+    root.addView(label("SENSIBILIDAD AL RITMO",16,0xffff9edb));
+    SeekBar sensitivityBar=new SeekBar(this);
+    sensitivityBar.setMax(100);sensitivityBar.setProgress(50);root.addView(sensitivityBar);
+    sensitivityBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+      public void onStartTrackingTouch(SeekBar b){}
+      public void onStopTrackingTouch(SeekBar b){}
+      public void onProgressChanged(SeekBar b,int p,boolean user){sensitivity=2.2-p*0.014;}
+    });
+    musicButton=button("▶ INICIAR SINCRONIZACIÓN",root);
+    musicButton.setOnClickListener(v->{
+      if(musicOn){stopMusic();musicButton.setText("▶ INICIAR SINCRONIZACIÓN");}
+      else if(audioSource==1){
+        if(projectionManager==null){say("Captura interna no disponible");return;}
+        try{startActivityForResult(projectionManager.createScreenCaptureIntent(),CAPTURE_REQUEST);}
+        catch(Exception e){say("No se pudo solicitar audio interno");}
+      }else if(startMusic()){musicButton.setText("■ DETENER SINCRONIZACIÓN");}
+    });
+    root.addView(label("Los perfiles son manuales: el audio sigue golpes y volumen, pero no identifica automáticamente el título de una canción.",12,0xffdfc9f3));
+    root.addView(label("Prototipo experimental. Protocolo Bluetooth sin verificar con el dispositivo real. No afiliado a KATSEYE.",11,0xffbda9cc));
     requestBluetoothPermissions();
   }
   private void showColorPicker(){
@@ -150,13 +182,13 @@ public class MainActivity extends Activity {
   }
   private TextView label(String value,int size,int color){
     TextView view=new TextView(this);
-    view.setText(value);view.setTextSize(size);view.setTextColor(color);view.setPadding(5,18,5,18);
+    view.setText(value);view.setTextSize(size);view.setTypeface(android.graphics.Typeface.create("sans-serif-condensed",size>=20?android.graphics.Typeface.BOLD:android.graphics.Typeface.NORMAL));view.setTextColor(color);view.setPadding(5,18,5,18);
     return view;
   }
   private Button button(String value,LinearLayout root){
     Button view=new Button(this);
-    view.setText(value);view.setAllCaps(false);view.setTextColor(Color.WHITE);
-    view.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff9563be));
+    view.setText(value);view.setAllCaps(false);view.setTypeface(android.graphics.Typeface.create("sans-serif-medium",android.graphics.Typeface.BOLD));view.setTextColor(Color.WHITE);
+    view.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff8e4bc4));
     root.addView(view);
     return view;
   }
@@ -251,7 +283,20 @@ public class MainActivity extends Activity {
     if(writeChar==null){say("Primero conecta el lightstick");return false;}
     int minimum=AudioRecord.getMinBufferSize(16000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT);
     if(minimum<=0){say("Micrófono no disponible");return false;}
-    recorder=new AudioRecord(MediaRecorder.AudioSource.MIC,16000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT,Math.max(minimum,4096));
+    if(audioSource==1){
+      if(projection==null){say("Autoriza la captura de audio interno");return false;}
+      try{
+        AudioPlaybackCaptureConfiguration config=new AudioPlaybackCaptureConfiguration.Builder(projection)
+          .addMatchingUsage(android.media.AudioAttributes.USAGE_MEDIA)
+          .addMatchingUsage(android.media.AudioAttributes.USAGE_GAME).build();
+        AudioFormat format=new AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+          .setSampleRate(16000).setChannelMask(AudioFormat.CHANNEL_IN_MONO).build();
+        recorder=new AudioRecord.Builder().setAudioFormat(format).setBufferSizeInBytes(Math.max(minimum,4096))
+          .setAudioPlaybackCaptureConfig(config).build();
+      }catch(Exception e){say("Esta reproducción no permite captura interna");releaseProjection();return false;}
+    }else{
+      recorder=new AudioRecord(MediaRecorder.AudioSource.MIC,16000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT,Math.max(minimum,4096));
+    }
     if(recorder.getState()!=AudioRecord.STATE_INITIALIZED){
       recorder.release();recorder=null;say("No se pudo iniciar micrófono");return false;
     }
@@ -274,7 +319,7 @@ public class MainActivity extends Activity {
         envelope=envelope*0.92+rms*0.08;
         if(now-last<110)continue;
         last=now;
-        boolean hit=rms>Math.max(0.018,envelope*1.5)&&rms>previous*1.12&&now-lastBeat>170;
+        boolean hit=rms>Math.max(0.012,envelope*sensitivity)&&rms>previous*1.12&&now-lastBeat>170;
         if(hit){beat++;lastBeat=now;}
         previous=rms;
         int mode=songMode;
@@ -299,6 +344,25 @@ public class MainActivity extends Activity {
       if(musicThread!=null&&musicThread!=Thread.currentThread())try{musicThread.join(400);}catch(InterruptedException ignored){}
       current.release();
     }
+    releaseProjection();
+  }
+  private void releaseProjection(){
+    MediaProjection p=projection;projection=null;
+    if(p!=null)try{p.stop();}catch(Exception ignored){}
+  }
+  @Override protected void onActivityResult(int request,int result,Intent data){
+    super.onActivityResult(request,result,data);
+    if(request!=CAPTURE_REQUEST)return;
+    if(result!=RESULT_OK||data==null){say("Captura interna cancelada");return;}
+    try{
+      projection=projectionManager.getMediaProjection(result,data);
+      projection.registerCallback(new MediaProjection.Callback(){
+        @Override public void onStop(){
+          handler.post(()->{if(musicOn)stopMusic();if(musicButton!=null)musicButton.setText("▶ INICIAR SINCRONIZACIÓN");say("Captura de audio finalizada");});
+        }
+      },handler);
+      if(startMusic())musicButton.setText("■ DETENER SINCRONIZACIÓN");
+    }catch(Exception e){say("No fue posible capturar el audio");releaseProjection();}
   }
   @Override protected void onDestroy(){
     stopMusic();
